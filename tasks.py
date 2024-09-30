@@ -10,33 +10,22 @@ os.environ['SDL_VIDEO_WINDOW_POS'] = f"{window_x},{window_y}"
 
 ORG_WIDTH = 798
 ORG_HEIGHT = 600
-
 WIDTH = ORG_WIDTH
 HEIGHT = ORG_HEIGHT + 100
 TITLE = "Calendar App"
-
-current_time = {
-    "second": datetime.datetime.now().second,
-    "minute": datetime.datetime.now().minute,
-    "hour": datetime.datetime.now().hour,
-    "day": datetime.datetime.now().day,
-    "month": datetime.datetime.now().strftime("%B"),
-    "month(int)": datetime.datetime.now().month,
-    "year": datetime.datetime.now().year
-}
 
 days = ["Sun", "    Mon", "        Tues", "           Wed", "                Thurs", "                    Fri", "                      Sat"]
 
 def get_first_day(year, month):
     day_of_week = datetime.datetime(year, month, 1).strftime('%A')
     days_to_dates = {
-        "sunday": 1,
-        "monday": 2,
-        "tuesday": 3,
-        "wednesday": 4,
-        "thursday": 5,
-        "friday": 6,
-        "saturday": 7
+        "sunday": 0,
+        "monday": 1,
+        "tuesday": 2,
+        "wednesday": 3,
+        "thursday": 4,
+        "friday": 5,
+        "saturday": 6
     }
     for day, num in days_to_dates.items():
         if day_of_week.lower() == day:
@@ -59,8 +48,12 @@ def draw_days_of_week():
 
 def draw_dates_of_month():
     global current_time
-    for i in range(1, 8):
-        screen.draw.text(str(i), color=(0, 0, 0), fontsize=35, center=((100 * get_first_day(int(current_time["year"]), int(8))) + (110 * (i - 1)) + ((i - 1) * 5) - i, 140))
+    first_day = get_first_day(current_time["year"], current_time["month(int)"])
+    days_in_month = (datetime.datetime(current_time["year"], current_time["month(int)"] + 1, 1) - datetime.datetime(current_time["year"], current_time["month(int)"], 1)).days
+    for i in range(days_in_month):
+        x = (((i + first_day) % 7) * ORG_WIDTH / 7) + 7.5
+        y = 132.5 + (((i + first_day) // 7) * (ORG_HEIGHT - 100) / 5)
+        screen.draw.text(str(i + 1), color= (0, 0, 0), topleft= (x, y), fontsize= 30)
 
 def draw():
     screen.fill((255, 255, 255))
