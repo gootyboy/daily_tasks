@@ -2,8 +2,9 @@ import os
 import pygame
 import tkinter
 import datetime
-from pymongo import MongoClient
+from tkinter import ttk
 from pgzero.rect import Rect
+from pymongo import MongoClient
 
 pygame.init()
 info = pygame.display.Info()
@@ -34,19 +35,50 @@ rect_hover = None
 hover_color = (200, 200, 200)
 today_color = (150, 150, 255)
 
-def screeninput(title, prompt, width, height):
+def screeninput(title, prompts, width, height):
     root = tkinter.Tk()
     root.geometry(f"{width}x{height}")
     root.title(title)
-    label = tkinter.Label(root, text=prompt)
-    label.pack(pady=20)
-    entry = tkinter.Entry(root, width=50)
-    entry.pack(pady=20)
+    
+    canvas = tkinter.Canvas(root)
+    canvas.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=True)
+    
+    scrollbar = ttk.Scrollbar(root, orient="vertical", command=canvas.yview)
+    scrollbar.pack(side=tkinter.RIGHT, fill="y")
+    
+    scrollable_frame = ttk.Frame(canvas)
+    
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(
+            scrollregion=canvas.bbox("all")
+        )
+    )
+    
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    entries = []
+    for prompt in prompts:
+        label = tkinter.Label(scrollable_frame, text=prompt)
+        label.pack(pady=10)
+        entry = tkinter.Entry(scrollable_frame, width=50)
+        entry.pack(pady=10)
+        entries.append(entry)
+    
     user_input = []
-    ok_button = tkinter.Button(root, text="OK", command=lambda: (user_input.append(entry.get()), root.destroy()))
+    def collect_input():
+        for entry in entries:
+            user_input.append(entry.get())
+        root.destroy()
+    
+    ok_button = tkinter.Button(scrollable_frame, text="Submit", command=collect_input)
     ok_button.pack(pady=20)
+    
     root.mainloop()
-    return user_input[0] if user_input else None
+    
+    return user_input if user_input else None
 
 def order_tasks():
     global tasks
@@ -157,7 +189,7 @@ def update():
     order_tasks()
 
 def get_tasks(day, month, year):
-    global tasks,task_colection
+    global tasks, task_colection
     query = {"day": day, "month": month, "year": year}
     task_data = task_colection.find_one(query)
     if task_data != None:
@@ -165,30 +197,10 @@ def get_tasks(day, month, year):
     else:
         tasks = []
 
-def ask_for_time(start_time):
-    title = f"{"Start" if start_time else "End"} Time"
-    time = screeninput(title, f"Enter {title.lower()}:", 255, 175)
-    while True:
-        if time.endswith(":00"):
-            if time.removesuffix(":00").isnumeric():
-                if 0 < int(time.removesuffix(":00")) < 13:
-                    break
-                else:
-                    time = screeninput(title, "Time must be in 12 hour format (without the \"am\"/\"pm\")\n(You will determine if the time is in the \nmorning or evening later)", 310, 175)
-            else:
-                time = screeninput(title, "All digits must be numeric (except for \":\")", 255, 175)
-        else:
-            if time.lower().endswith("am") or time.lower().endswith("pm"):
-                time = screeninput(title, "Time must not end with \"AM\" or \"PM\"", 255, 175)
-            else:
-                time = screeninput(title, "Time must end in \":00\"", 255, 175)
-    return time
-
 def add_task():
-    task_name = screeninput("Task Name", "Enter task name:", 255, 175)
-    start_time = ask_for_time(True)
-    end_time = ask_for_time(False)
-    print(task_name, start_time, end_time)
+    global rect_clicked
+    names = screeninput(f"Task Infomation: {current_time['month']} {rect_clicked}", ["Enter task name:", "Enter Start Time", "Is the start time in the morning or evening?", "Enter End Time", "Is the end time in the morning or evening?"], 400, 450)
+    print(names)
 
 def on_mouse_down(pos, button):
     global rects, WIDTH, screen_clicked, rect_clicked, days_in_month
