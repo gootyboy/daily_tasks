@@ -36,49 +36,47 @@ hover_color = (200, 200, 200)
 today_color = (150, 150, 255)
 
 def screeninput(title, prompts, width, height):
-    root = tkinter.Tk()
+    import tkinter as tk
+    from tkinter import ttk
+    root = tk.Tk()
     root.geometry(f"{width}x{height}")
     root.title(title)
-    
-    canvas = tkinter.Canvas(root)
-    canvas.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=True)
-    
+    canvas = tk.Canvas(root)
+    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar = ttk.Scrollbar(root, orient="vertical", command=canvas.yview)
-    scrollbar.pack(side=tkinter.RIGHT, fill="y")
-    
+    scrollbar.pack(side=tk.RIGHT, fill="y")
     scrollable_frame = ttk.Frame(canvas)
-    
     scrollable_frame.bind(
         "<Configure>",
         lambda e: canvas.configure(
             scrollregion=canvas.bbox("all")
         )
     )
-    
     canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-    
     canvas.configure(yscrollcommand=scrollbar.set)
-
     entries = []
     for prompt in prompts:
-        label = tkinter.Label(scrollable_frame, text=prompt)
+        label = tk.Label(scrollable_frame, text=prompt)
         label.pack(pady=10)
-        entry = tkinter.Entry(scrollable_frame, width=50)
+        entry = tk.Entry(scrollable_frame, width=50)
         entry.pack(pady=10)
         entries.append(entry)
-    
-    user_input = []
+    user_input = [" " for i in prompts]
     def collect_input():
-        for entry in entries:
-            user_input.append(entry.get())
+        for i, entry in enumerate(entries):
+            user_input[i] = " " if entry.get() == "" or None else entry.get()
         root.destroy()
-    
-    ok_button = tkinter.Button(scrollable_frame, text="Submit", command=collect_input)
-    ok_button.pack(pady=20)
-    
+    def cancel_input():
+        for i in range(len(user_input)):
+            user_input[i] = " "
+        root.destroy()
+    root.protocol("WM_DELETE_WINDOW", cancel_input)
+    ok_button = tk.Button(scrollable_frame, text="Submit", command=collect_input)
+    ok_button.pack(pady=20, side="left")
+    cancel_button = tk.Button(scrollable_frame, text="Cancel", command=cancel_input)
+    cancel_button.pack(pady=20, side="right")
     root.mainloop()
-    
-    return user_input if user_input else None
+    return user_input if user_input else [" " for i in range(len(prompts))]
 
 def order_tasks():
     global tasks
@@ -197,10 +195,56 @@ def get_tasks(day, month, year):
     else:
         tasks = []
 
+def check_time_correct(start_time, time):
+    time_name = f"{"start" if start_time else "end"}"
+    if time != " ":
+        if time.endswith(":00"):
+            if time.removesuffix(":00").isnumeric():
+                if 0 < int(time.removesuffix(":00")) < 13:
+                    return {"correct": True, "prompt": " ", "cancel": False}
+                else:
+                    return {"correct": False, "prompt": f"{time_name} must be in 12 hour format (without the \"am\"/\"pm\")\n(You will determine if the time is in the morning or evening later)", "cancel": False}
+            else:
+                return {"correct": False, "prompt": f"{time_name}: all digits must be numeric (except for \":\")", "cancel": False}
+        else:
+            if time.lower().endswith("am") or time.lower().endswith("pm"):
+                return {"correct": False, "prompt": f"{time_name} must not end with \"AM\" or \"PM\"\n(You will determine if the time is in the morning or evening later)", "cancel": False}
+            else:
+                return {"correct": False, "prompt": f"{time_name} must end in \":00\"", "cancel": False}
+    else:
+        print("TASK HAS BEEN CANCELED")
+        return {"correct": True, "prompt": " ", "cancel": True}
+    
+def check_morning_correct(morning):
+    if morning != " ":
+        if morning.lower() in ["morning", "evening"]:
+            return {"correct": True, "prompt": " ", "cancel": False}
+        else:
+            return {"correct": False, "prompt": f"Input MUST BE \"morning\" or \"evening\"", "cancel": False}
+    else:
+        print("TASK HAS BEEN CANCELED")
+        return {"correct": True, "prompt": " ", "cancel": True}
+
 def add_task():
     global rect_clicked
-    names = screeninput(f"Task Infomation: {current_time['month']} {rect_clicked}", ["Enter task name:", "Enter Start Time", "Is the start time in the morning or evening?", "Enter End Time", "Is the end time in the morning or evening?"], 400, 450)
-    print(names)
+    task_info = {}
+    names = screeninput(f"Task Infomation: {current_time['month']} {rect_clicked}", ["Enter task name:", "Enter Start Time", "Enter End Time", "Is the end time and start time in the morning or evening?\n(\"morning\"/\"evening\")"], 400, 325)
+    while True:
+        correct_start_time = check_time_correct(True, names[1])
+        correct_end_time = check_time_correct(False, names[2])
+        correct_morning = check_morning_correct(names[3])
+        print(correct_start_time)
+        if correct_start_time["correct"] and correct_end_time["correct"]:
+            break
+        names = screeninput(f"Task Infomation: {current_time['month']} {rect_clicked}", ["Enter task name:", f"Enter Start Time\n{correct_start_time["prompt"]}", f"Enter End Time\n{correct_end_time["prompt"]}", "Is the end time and start time in the morning or evening?\n(\"morning\"/\"evening\")"], 400, 325)
+    if correct_start_time["cancel"] or correct_end_time["cancel"] or correct_morning["cancel"]:
+        task_info["name"] = names[0]
+        task_info["start_time"] = names[1]
+        task_info["end_time"] = names[2]
+        task_info["morning"] = names[3] == "morning"
+    else:
+        task_info = None
+    print(task_info)
 
 def on_mouse_down(pos, button):
     global rects, WIDTH, screen_clicked, rect_clicked, days_in_month
