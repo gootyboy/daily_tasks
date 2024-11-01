@@ -8,13 +8,9 @@ from pymongo import MongoClient
 
 pygame.init()
 info = pygame.display.Info()
-window_x = (info.current_w - (798)) // 2
-window_y = (info.current_h - (700)) // 2
-os.environ["SDL_VIDEO_WINDOW_POS"] = f"{window_x},{window_y}"
+os.environ["SDL_VIDEO_WINDOW_POS"] = f"{(info.current_w - (798)) // 2},{(info.current_h - (700)) // 2}"
 
-client = MongoClient("mongodb://localhost:27017/")
-database = client.get_database("my_tasks_db")
-task_colection = database.get_collection("my_tasks")
+task_colection = MongoClient("mongodb://localhost:27017/").get_database("my_tasks_db").get_collection("my_tasks")
 
 ORG_WIDTH = 798
 ORG_HEIGHT = 600
@@ -27,7 +23,7 @@ screen_clicked = False
 
 tasks=[]
 rects = {"day_rect": [Rect((ORG_WIDTH / 7) * i - 1, 124 + 100 * j, ORG_WIDTH / 7 + 1, HEIGHT / 7 + 1) for j in range(5) for i in range(7)],
-         "today_rect": Rect(ORG_HEIGHT + 50, ORG_WIDTH - 100, 75, 30),
+         "today_rect": Rect(ORG_WIDTH - 115, ORG_HEIGHT + 45, 88, 55),
          "add_task_rect": Rect(ORG_WIDTH + 40, ORG_HEIGHT + 15, 125, 30)
          }
 rect_clicked = None
@@ -36,15 +32,13 @@ hover_color = (200, 200, 200)
 today_color = (150, 150, 255)
 
 def screeninput(title, prompts, width, height):
-    import tkinter as tk
-    from tkinter import ttk
-    root = tk.Tk()
+    root = tkinter.Tk()
     root.geometry(f"{width}x{height}")
     root.title(title)
-    canvas = tk.Canvas(root)
-    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    canvas = tkinter.Canvas(root)
+    canvas.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=True)
     scrollbar = ttk.Scrollbar(root, orient="vertical", command=canvas.yview)
-    scrollbar.pack(side=tk.RIGHT, fill="y")
+    scrollbar.pack(side=tkinter.RIGHT, fill="y")
     scrollable_frame = ttk.Frame(canvas)
     scrollable_frame.bind(
         "<Configure>",
@@ -56,9 +50,9 @@ def screeninput(title, prompts, width, height):
     canvas.configure(yscrollcommand=scrollbar.set)
     entries = []
     for prompt in prompts:
-        label = tk.Label(scrollable_frame, text=prompt)
+        label = tkinter.Label(scrollable_frame, text=prompt)
         label.pack(pady=10)
-        entry = tk.Entry(scrollable_frame, width=50)
+        entry = tkinter.Entry(scrollable_frame, width=50)
         entry.pack(pady=10)
         entries.append(entry)
     user_input = [" " for i in prompts]
@@ -71,9 +65,9 @@ def screeninput(title, prompts, width, height):
             user_input[i] = " "
         root.destroy()
     root.protocol("WM_DELETE_WINDOW", cancel_input)
-    ok_button = tk.Button(scrollable_frame, text="Submit", command=collect_input)
+    ok_button = tkinter.Button(scrollable_frame, text="Submit", command=collect_input)
     ok_button.pack(pady=20, side="left")
-    cancel_button = tk.Button(scrollable_frame, text="Cancel", command=cancel_input)
+    cancel_button = tkinter.Button(scrollable_frame, text="Cancel", command=cancel_input)
     cancel_button.pack(pady=20, side="right")
     root.mainloop()
     return user_input if user_input else [" " for i in range(len(prompts))]
@@ -137,13 +131,13 @@ def draw_dates_of_month():
 def draw_tasks(tasks):
     global rect_clicked
     screen.draw.text("Tasks", color=(0, 0, 0), fontsize=75, center=(950, 55))
+    screen.draw.text(f"{current_time["month"]} {rect_clicked} {"(Today)" if rect_clicked == current_time['day'] else ""}", color = (0, 0, 0), fontsize = 45, center=(950, 110))
     for i in range(len(tasks)):
         if int(tasks[i]["end_time"].removesuffix(":00")) > current_time["hour"]["int"] >= int(tasks[i]["start_time"].removesuffix(":00")):
             if current_time["hour"]["morning"] == tasks[i]["morning"] and rect_clicked == current_time["day"]:
                 screen.draw.text(f"{tasks[i]["name"]}: {tasks[i]["start_time"]} to {tasks[i]["end_time"]}", color=(255, 0, 0), fontsize=35, midleft=(810, 145 + (i * 35)))
                 continue
         screen.draw.text(f"{tasks[i]["name"]}: {tasks[i]["start_time"]} to {tasks[i]["end_time"]}", color=(0, 0, 0), fontsize=35, midleft=(810, 145 + (i * 35)))
-    screen.draw.text(f"{current_time["month"]} {rect_clicked}", color = (0, 0, 0), fontsize = 45, center=(950, 110))
 
 def draw():
     global screen_clicked, rect_hover
@@ -152,13 +146,14 @@ def draw():
     screen.draw.text(f"Current Date: {current_time["month"]} {current_time["day"]}", color=(0, 0, 0), fontsize=35, midleft=(0, ORG_HEIGHT + 50))
     screen.draw.text(f"Current Time: {current_time["time(AM/PM)"]}", color=(0, 0, 0), fontsize=35, midleft=(0, ORG_HEIGHT + 85))
     screen.draw.filled_rect(rects["day_rect"][current_time["day"] + get_first_day(current_time["year"], current_time["month(int)"]) - 1], color=today_color)
+    screen.draw.filled_rect(rects["today_rect"], color= (255, 200, 0)) # Remove
+    screen.draw.textbox("Today", rects["today_rect"], color= (0, 0, 0))
     if rect_hover != None:
         screen.draw.filled_rect(rects["day_rect"][rect_hover], color= hover_color)
     if screen_clicked:
         draw_tasks(tasks)
         screen.draw.filled_rect(Rect(810, ORG_HEIGHT + 60, 40, 20), color=(255, 0, 0))
         screen.draw.text("= Current Task", color=(0, 0, 0), fontsize=30, topleft=(855, ORG_HEIGHT + 60))
-        # screen.draw.rect(rects["today_rect"], color= (0, 0, 0))
         screen.draw.filled_rect(rects["add_task_rect"], color= (150, 255, 175))
         screen.draw.textbox("Add Task", rects["add_task_rect"], color= (0, 0, 0))
     draw_lines()
@@ -212,7 +207,7 @@ def check_time_correct(start_time, time):
             else:
                 return {"correct": False, "prompt": f"{time_name} must end in \":00\"", "cancel": False}
     else:
-        print("TASK HAS BEEN CANCELED")
+        print("ADD TASK HAS BEEN CANCELED")
         return {"correct": True, "prompt": " ", "cancel": True}
     
 def check_morning_correct(morning):
@@ -233,11 +228,10 @@ def add_task():
         correct_start_time = check_time_correct(True, names[1])
         correct_end_time = check_time_correct(False, names[2])
         correct_morning = check_morning_correct(names[3])
-        print(correct_start_time)
         if correct_start_time["correct"] and correct_end_time["correct"]:
             break
         names = screeninput(f"Task Infomation: {current_time['month']} {rect_clicked}", ["Enter task name:", f"Enter Start Time\n{correct_start_time["prompt"]}", f"Enter End Time\n{correct_end_time["prompt"]}", "Is the end time and start time in the morning or evening?\n(\"morning\"/\"evening\")"], 400, 325)
-    if correct_start_time["cancel"] or correct_end_time["cancel"] or correct_morning["cancel"]:
+    if not correct_start_time["cancel"] or not correct_end_time["cancel"] or not correct_morning["cancel"]:
         task_info["name"] = names[0]
         task_info["start_time"] = names[1]
         task_info["end_time"] = names[2]
@@ -260,6 +254,15 @@ def on_mouse_down(pos, button):
                 screen_clicked = False
     if rects["add_task_rect"].collidepoint(pos) and button == 1:
         add_task()
+    if rects["today_rect"].collidepoint(pos) and button == 1:
+        rect_clicked = current_time["day"]
+        if rect_clicked > 0 and rect_clicked <= days_in_month:
+            WIDTH = ORG_WIDTH + 350
+            screen_clicked = True
+            get_tasks(rect_clicked, current_time["month(int)"], current_time["year"])
+        else:
+            WIDTH = ORG_WIDTH
+            screen_clicked = False
 
 def on_mouse_move(pos):
     global rect_hover
